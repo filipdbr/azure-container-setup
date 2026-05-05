@@ -8,9 +8,20 @@ The focus is on managing the full lifecycle: provisioning infrastructure, deploy
 
 ## Scope
 
-- define and provision infrastructure in Azure using Terraform  
-- deploy and manage a multi-service application with Docker  
-- automate setup and deployment using Bash scripts  
+1. define and provision infrastructure in Azure using Terraform  
+2. deploy and manage a multi-service application with Docker  
+3. automate setup and deployment using Bash scripts  
+
+## Infrastructure Components
+
+The infrastructure is built on **Microsoft Azure**.
+
+| Component | Resource | Description |
+| :--- | :--- | :--- |
+| **Networking** | Virtual Network & Subnet | Isolated cloud environment providing a private space for the server. |
+| **Security** | Network Security Group | Layer 4 firewall strictly allowing traffic on ports 22 (SSH) and 2283 (Immich). |
+| **Connectivity** | Public IP | Dynamic entry point that enables external access to the web interface. |
+| **Compute** | Linux VM (Ubuntu 22.04) | `Standard_B2s` instance optimized for Immich's AI workloads and media indexing. |
 
 ## Tech stack
 
@@ -23,3 +34,18 @@ The focus is on managing the full lifecycle: provisioning infrastructure, deploy
 ## Goal
 
 Build a reproducible environment that can be deployed from scratch without manual steps and runs reliably in the cloud.
+
+## Project Structure
+
+```text
+.
+├── app/
+│   ├── docker-compose.yml     # Official Immich stack
+│   └── .env.example           # Environment template (secrets ignored by Git)
+└── terraform/
+    ├── main.tf                # Providers and Resource Group
+    ├── network.tf             # VNet, Subnet, IP, and NSG
+    ├── compute.tf             # Virtual Machine and NIC
+    ├── variables.tf           # Configuration Center (User-defined variables)
+    └── outputs.tf             # Deployment results (IP & URL)
+```
