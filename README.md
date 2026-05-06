@@ -49,3 +49,14 @@ Build a reproducible environment that can be deployed from scratch without manua
     ├── variables.tf           # Configuration Center (User-defined variables)
     └── outputs.tf             # Deployment results (IP & URL)
 ```
+
+## Provisioning & Configuration
+
+The deployment process separates infrastructure provisioning from system configuration. While Terraform builds the foundation on Azure, a shell script prepares the environment for the application.
+
+### Workflow
+
+1. **Infrastructure as Code:** Terraform creates the Virtual Machine, Network Interface, and associated Azure resources.
+2. **Cloud-Init Execution:** During the initial boot sequence, the `user_data` argument in the VM resource automatically injects and executes the `scripts/provision.sh` file.
+3. **Docker Setup:** The script runs in the background (using `DEBIAN_FRONTEND=noninteractive` to prevent hanging prompts) to install the latest Docker Engine and Docker Compose directly from the official repositories.
+4. **User Management:** The script automatically appends the `immich_admin` user to the `docker` group. This enables seamless, passwordless container management without requiring `sudo` privileges for every command.
