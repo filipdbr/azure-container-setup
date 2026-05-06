@@ -30,4 +30,7 @@ resource "azurerm_linux_virtual_machine" "immich_vm" {
     sku       = var.vm_sku
     version   = "latest"
   }
+
+  # lauch a script installing docker on the immich server
+  user_data = filebase64("${path.module}/../scripts/provision.sh")
 }
