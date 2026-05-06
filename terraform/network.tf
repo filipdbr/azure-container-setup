@@ -21,7 +21,7 @@ resource "azurerm_public_ip" "immich_pip" {
   name                = "immich-public-ip"
   resource_group_name = azurerm_resource_group.immich_rg.name
   location            = azurerm_resource_group.immich_rg.location
-  allocation_method   = "Dynamic"
+  allocation_method   = "Static"
 }
 
 # create a firewall

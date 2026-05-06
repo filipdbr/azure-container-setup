@@ -28,7 +28,7 @@ variable "vm_sku" {
 
 variable "vm_size" {
   description = "The size of the Virtual Machine"
-  default     = "Standard_B2s"
+  default     = "Standard_D2s_v4"
 }
 
 variable "immich_port" {
