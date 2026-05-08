@@ -38,7 +38,7 @@ resource "azurerm_linux_virtual_machine" "immich_vm" {
   }
 
   # lauch a script installing docker on the immich server
-  user_data = base64encode(templatefile("${path.module}/scripts/provision.sh", {
+  user_data = base64encode(templatefile("${path.module}/../scripts/provision.sh", {
     # add variables
     pass_name  = azurerm_key_vault_secret.immich_db_pass.name
     vault_name = azurerm_key_vault.immich_kv.name
