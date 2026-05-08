@@ -26,7 +26,7 @@ resource "azurerm_key_vault" "immich_kv" {
 resource "azurerm_key_vault_access_policy" "vm_access_policy" {
   key_vault_id       = azurerm_key_vault.immich_kv.id
   object_id          = azurerm_linux_virtual_machine.immich_vm.identity[0].principal_id # managed identity
-  tenant_id          = data.azurerm_client_config.current
+  tenant_id          = data.azurerm_client_config.current.tenant_id
   secret_permissions = ["Get"]
 }
 
