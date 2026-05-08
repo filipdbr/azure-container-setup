@@ -19,7 +19,7 @@ export DEBIAN_FRONTEND=noninteractive
  tee /etc/apt/sources.list.d/docker.sources <<EOF
 Types: deb
 URIs: https://download.docker.com/linux/ubuntu
-Suites: $(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}")
+Suites: $(. /etc/os-release && echo "$${UBUNTU_CODENAME:-$VERSION_CODENAME}")
 Components: stable
 Architectures: $(dpkg --print-architecture)
 Signed-By: /etc/apt/keyrings/docker.asc
@@ -32,8 +32,8 @@ curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
 
 az login --identity
 
-# try to retrieve the pass for 120 seconds
-end=$((SECONDS+120))
+# try to retrieve the pass for 500 seconds
+end=$((SECONDS+500))
 start=$SECONDS
 while [ $SECONDS -lt $end ]; do
     DB_PASS=$(az keyvault secret show --name "${pass_name}" --vault-name "${vault_name}" --query value -o tsv 2>/dev/null)
