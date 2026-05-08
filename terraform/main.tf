@@ -12,13 +12,13 @@ terraform {
 
 provider "azurerm" {
   features {
-      key_vault {
-        
-        # as it is a lab, destroy key vault upon 'terraform destroy' command without keeping it in soft delete state for 90 days
-        purge_soft_delete_on_destroy    = true
+    key_vault {
 
-        # if key vault was deleted it can be recovered upon 'terraform apply'
-        recover_soft_deleted_key_vaults = true
+      # as it is a lab, destroy key vault upon 'terraform destroy' command without keeping it in soft delete state for 90 days
+      purge_soft_delete_on_destroy = true
+
+      # if key vault was deleted it can be recovered upon 'terraform apply'
+      recover_soft_deleted_key_vaults = true
     }
 
   }
