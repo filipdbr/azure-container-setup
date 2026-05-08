@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# loggin sciprt execution to the file
+exec >> /var/log/user_data.log 2>&1
+
 export DEBIAN_FRONTEND=noninteractive
 
  apt update &&  apt upgrade -y
@@ -33,11 +36,37 @@ systemctl enable --now docker
 # adding the user defined in Terraform to the docker grooup
 usermod -aG docker immich_admin
 
-# Verification
-docker_status=$(systemctl is-active docker)
-if [ "$docker_status" = "active" ]; then
-    echo "Docker service is active"
-else
-    echo "Docker service doesn't work"
-    exit 1
-fi
+mkdir immich-app && cd immich-app
+
+git clone 
+
+wget -O docker-compose.yml https://github.com/immich-app/immich/releases/latest/download/docker-compose.yml
+
+touch .env
+
+cat > .env <<EOF
+# You can find documentation for all the supported env variables at https://docs.immich.app/install/environment-variables
+
+# The location where your uploaded files are stored
+UPLOAD_LOCATION=./library
+
+# The location where your database files are stored. Network shares are not supported for the database
+DB_DATA_LOCATION=./postgres
+
+# To set a timezone, uncomment the next line and change Etc/UTC to a TZ identifier from this list: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List
+# TZ=Etc/UTC
+
+# The Immich version to use. You can pin this to a specific version like "v2.1.0"
+IMMICH_VERSION=v2
+
+# Connection secret for postgres. You should change it to a random password
+# Please use only the characters `A-Za-z0-9`, without special characters or spaces
+DB_PASSWORD=postgres
+
+# The values below this line do not need to be changed
+###################################################################################
+DB_USERNAME=postgres
+DB_DATABASE_NAME=immich
+EOF
+
+docker compose up -d
