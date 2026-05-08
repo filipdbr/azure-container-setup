@@ -30,6 +30,12 @@ resource "azurerm_key_vault_access_policy" "vm_access_policy" {
   secret_permissions = ["Get"]
 }
 
+resource "azurerm_role_assignment" "vm_reader" {
+  scope                = azurerm_resource_group.immich_rg.id
+  role_definition_name = "Reader"
+  principal_id         = azurerm_linux_virtual_machine.immich_vm.identity[0].principal_id
+}
+
 # helpers
 
 # helper resource creating a random id of 4 bytes length
