@@ -13,6 +13,12 @@ resource "azurerm_linux_virtual_machine" "immich_vm" {
     azurerm_network_interface.immich_nic.id,
   ]
 
+  # assign managed identity to a VM in order to get passwords from Azure Key Vault
+  # using system-managed assigned identit
+  identity {
+    type = "SystemAssigned"
+  }
+
   admin_ssh_key {
     username   = var.admin_username
     public_key = file("~/.ssh/id_rsa.pub")
