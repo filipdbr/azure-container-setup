@@ -30,13 +30,23 @@ resource "azurerm_key_vault_access_policy" "vm_access_policy" {
   secret_permissions = ["Get"]
 }
 
+### role assignements - they will let the VM communicate with other resources
+
+# grants to the VM the persmission to read all the resources in the RG
 resource "azurerm_role_assignment" "vm_reader" {
   scope                = azurerm_resource_group.immich_rg.id
   role_definition_name = "Reader"
   principal_id         = azurerm_linux_virtual_machine.immich_vm.identity[0].principal_id
 }
 
-# helpers
+# grants to the VM the permission to pull images from ACR
+resource "azurerm_role_assignment" "vm_to_acr" {
+  scope = azurerm_container_registry.immich_acr.id
+  principal_id = azurerm_linux_virtual_machine.immich_vm.identity[0].principal_id
+  role_definition_name = "AcrPull"
+}
+
+### helpers
 
 # helper resource creating a random id of 4 bytes length
 resource "random_id" "my_kv_id" {
