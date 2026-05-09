@@ -24,7 +24,6 @@ resource "azurerm_linux_virtual_machine" "immich_vm" {
     public_key = file("~/.ssh/id_rsa.pub")
   }
 
-
   os_disk {
     caching              = "ReadWrite"
     storage_account_type = var.disk_type
@@ -36,12 +35,4 @@ resource "azurerm_linux_virtual_machine" "immich_vm" {
     sku       = var.vm_sku
     version   = "latest"
   }
-
-  # lauch a script installing docker on the immich server
-  user_data = base64encode(templatefile("${path.module}/../scripts/provision.sh", {
-    # add variables
-    pass_name  = azurerm_key_vault_secret.immich_db_pass.name
-    vault_name = azurerm_key_vault.immich_kv.name
-    admin_name = var.admin_username
-  }))
 }
