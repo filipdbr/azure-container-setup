@@ -41,8 +41,8 @@ resource "azurerm_role_assignment" "vm_reader" {
 
 # grants to the VM the permission to pull images from ACR
 resource "azurerm_role_assignment" "vm_to_acr" {
-  scope = azurerm_container_registry.immich_acr.id
-  principal_id = azurerm_linux_virtual_machine.immich_vm.identity[0].principal_id
+  scope                = azurerm_container_registry.immich_acr.id
+  principal_id         = azurerm_linux_virtual_machine.immich_vm.identity[0].principal_id
   role_definition_name = "AcrPull"
 }
 
