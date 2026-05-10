@@ -2,10 +2,13 @@
 
 # the script deploy and configure infrastructure using terraform and ansible (respectively)
 
+# define the timestamp variable
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+
 echo "Deployment in progress..."
 
 # create logs directory
-mkdir -p logs
+mkdir -p logs/{terraform,ansible}
 
 # define variable containing logs dir absolute path
 LOG_DIR="$(pwd)/logs"
@@ -17,7 +20,7 @@ cd terraform || exit
 
 # configure logs for terraform
 export TF_LOG="INFO"
-export TF_LOG_PATH="$LOG_DIR/terraform.log"
+export TF_LOG_PATH="$LOG_DIR/terraform/terraform_$TIMESTAMP.log"
 
 echo "Initializing Terraform..."
 terraform init
@@ -30,7 +33,7 @@ if ! terraform apply -auto-approve; then
 fi
 
 # assign a variable: IP of the newly created VM
-VM_IP=$(terraform output -raw vm_public_ip)
+VM_IP=$(terraform output -raw public_ip_address)
 
 # check if the IP variable is empty 
 if [[ -z "$VM_IP" ]]; then
@@ -47,13 +50,13 @@ echo "Waiting 30 seconds for SSH to be ready on the VM..."
 sleep 30
 
 # configure logs for ansible
-export ANSIBLE_LOG_PATH="$LOG_DIR/ansible.log"
+export ANSIBLE_LOG_PATH="$LOG_DIR/ansible/ansible$TIMESTAMP.log"
 
 echo "Server configuration in progress..."
 cd ../ansible || exit
 
 # run the Ansible playbook and catch any potential errors
-if ! ansible-playbook -i inventory.ini setup.yml; then
+if ! ansible-playbook -i inventory.ini azure-provision.yml; then
     echo "Error: Ansible provisioning failed. You can check the playbook logs here: $ANSIBLE_LOG_PATH"
     exit 1
 else
