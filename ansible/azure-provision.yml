@@ -1,0 +1,70 @@
+---
+- name: Server preparation and application deployment
+  hosts: immich_servers
+  become: yes
+
+  tasks:
+
+    # --- DOCKER INSTALLATION ---
+    - name: Install required system packages
+      apt:
+        name:
+          - ca-certificates
+          - curl
+          - gnupg
+        state: present
+        update_cache: yes
+
+    - name: Add Docker GPG key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add Docker repository
+      apt_repository:
+        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable"
+        state: present
+
+    - name: Install Docker and Compose V2 plugin
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-compose-plugin
+        state: present
+        update_cache: yes
+
+# --- FILE DEPLOYMENT ---
+    - name: Create target directories on the server
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - /opt/app
+        - /opt/docker_proxy
+
+    - name: Copy docker-compose.yml
+      copy:
+        src: "{{ playbook_dir }}/../app/docker-compose.yml"
+        dest: /opt/app/docker-compose.yml
+
+    - name: Copy proxy configuration files
+      copy:
+        src: "{{ playbook_dir }}/../docker-proxy/"
+        dest: /opt/docker_proxy/
+
+    # --- EXECUTION ---
+    - name: Start Immich via Docker Compose
+      command: docker compose up -d
+      args:
+        chdir: /opt/app
+
+    - name: Build and Start Nginx Proxy
+      shell: |
+        docker image build -t immich-proxy .
+        docker rm -f immich-proxy || true
+        docker run -d --name immich-proxy -p 80:80 --network app_default immich-proxy
+      args:
+        chdir: /opt/docker_proxy
