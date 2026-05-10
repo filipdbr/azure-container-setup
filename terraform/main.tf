@@ -36,7 +36,7 @@ resource "local_file" "ansible_inventory" {
 
   content = <<-EOF
     [immich_servers]
-    ${azurerm_public_ip.immich_public_ip.ip_address}
+    ${azurerm_public_ip.immich_pip.ip_address}
 
     [immich_servers:vars]
     ansible_user=${var.admin_username}
