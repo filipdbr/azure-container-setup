@@ -33,13 +33,14 @@ resource "azurerm_resource_group" "immich_rg" {
 # create an inventory file for ansible based on the deployment
 resource "local_file" "ansible_inventory" {
   filename = "../ansible/inventory.ini"
-  
+
   content = <<-EOF
     [immich_servers]
     ${azurerm_public_ip.immich_public_ip.ip_address}
 
     [immich_servers:vars]
     ansible_user=${var.admin_username}
+    ansible_connection=ssh
     ansible_ssh_private_key_file=~/.ssh/id_rsa
     ansible_python_interpreter=/usr/bin/python3
     ansible_ssh_common_args='-o StrictHostKeyChecking=no'
