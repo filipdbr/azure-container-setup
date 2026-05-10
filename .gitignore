@@ -11,3 +11,6 @@ app/.env
 
 # System
 .DS_Store
+
+# Ansible
+ansible/*inventory*
