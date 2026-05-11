@@ -43,6 +43,9 @@ else
     echo "Infrastructure deployed successfully. Server IP: $VM_IP"
 fi
 
+# get key vault name
+KV_NAME=$(terraform output -raw keyvault_name)
+
 ### Provision the server using Ansible ###
 
 # SSH daemon need time to boot up - wait 30 s
@@ -56,7 +59,7 @@ echo "Server configuration in progress..."
 cd ../ansible || exit
 
 # run the Ansible playbook and catch any potential errors
-if ! ansible-playbook -i inventory.ini azure-provision.yml; then
+if ! ansible-playbook -i inventory.ini azure-provision.yml --extra-vars "keyvault_name=$KV_NAME"; then
     echo "Error: Ansible provisioning failed. You can check the playbook logs here: $ANSIBLE_LOG_PATH"
     exit 1
 else
