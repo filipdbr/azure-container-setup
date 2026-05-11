@@ -55,6 +55,36 @@
         src: "{{ playbook_dir }}/../docker-proxy/"
         dest: /opt/docker_proxy/
 
+    # --- DYNAMIC SECRET FETCHING (No CLI required) ---
+
+    - name: Get Access Token from Azure Metadata Service
+      uri:
+        url: "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https://vault.azure.net"
+        headers:
+          Metadata: "true"
+      register: token_response
+
+    - name: Fetch password from Key Vault via REST API
+      uri:
+        url: "https://{{ keyvault_name }}.vault.azure.net/secrets/immich-db-pass?api-version=7.4"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ token_response.json.access_token }}"
+      register: vault_db_password
+      no_log: true # do not put pwd explicitly in the logs
+
+    - name: Create .env file on the remote server
+      copy:
+        dest: /opt/app/.env
+        content: |
+          UPLOAD_LOCATION=./library
+          DB_DATA_LOCATION=./postgres
+          IMMICH_VERSION=release
+          DB_PASSWORD={{ vault_db_password.json.value }}
+          DB_USERNAME=postgres
+          DB_DATABASE_NAME=immich
+        mode: '0600'
+
     # --- EXECUTION ---
     - name: Start Immich via Docker Compose
       command: docker compose up -d
@@ -65,6 +95,6 @@
       shell: |
         docker image build -t immich-proxy .
         docker rm -f immich-proxy || true
-        docker run -d --name immich-proxy -p 80:80 --network app_default immich-proxy
+        docker run -d --name immich-proxy -p 80:80 --network immich_default immich-proxy
       args:
         chdir: /opt/docker_proxy
