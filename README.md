@@ -99,6 +99,7 @@ With the new architecture in place, deploying the environment from scratch is a 
 - [x] **Architecture Refactor**: Completely ripped out legacy Bash scripts and `custom_data` from Terraform to enforce a clean Separation of Concerns.
 
 ### To Do
-- [ ] **Configuration Management**: Write the actual Ansible playbooks (`setup.yml`) to automate the Docker installation and container deployment.
+- [x] **Configuration Management**: Write the actual Ansible playbooks (`setup.yml`) to automate the Docker installation and container deployment.
+- [ ] **Documentation**: Update documentation, describe Ansible playbooks, updates in Key Vault and updates in the shell script.
 - [ ] **Persistent Storage**: Attach dedicated Azure storage (like Azure Files or Managed Disks) so photo backups aren't lost if the VM dies.
 - [ ] **CI/CD Pipeline**: Automate the Docker image build and push process to ACR using GitHub Actions.
