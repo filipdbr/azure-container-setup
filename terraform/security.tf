@@ -12,13 +12,14 @@ resource "azurerm_key_vault" "immich_kv" {
   purge_protection_enabled    = false # disable purge protection for lab purposes
 
   sku_name = "standard"
+}
 
-  # access policy for the admin, full priveleges
-  access_policy {
-    object_id          = data.azurerm_client_config.current.object_id
-    tenant_id          = data.azurerm_client_config.current.tenant_id
-    secret_permissions = ["Get", "List", "Set", "Delete", "Purge", "Recover"]
-  }
+# access policy for admin
+resource "azurerm_key_vault_access_policy" "admin_access_policy" {
+  key_vault_id       = azurerm_key_vault.immich_kv.id
+  object_id          = data.azurerm_client_config.current.object_id
+  tenant_id          = data.azurerm_client_config.current.tenant_id
+  secret_permissions = ["Get", "List", "Set", "Delete", "Purge", "Recover"]
 }
 
 # access policy for the VM (managed identity)
