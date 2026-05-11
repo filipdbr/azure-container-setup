@@ -9,3 +9,7 @@ output "immich_url" {
   description = "The URL to access the Immich web interface"
   value       = "http://${azurerm_linux_virtual_machine.immich_vm.public_ip_address}:80"
 }
+
+output "keyvault_name" {
+  value = azurerm_key_vault.immich_kv.name
+}
