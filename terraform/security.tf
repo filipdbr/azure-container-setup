@@ -65,4 +65,13 @@ resource "azurerm_key_vault_secret" "immich_db_pass" {
   name         = "immich-db-pass"
   value        = random_password.db_pass_generator.result
   key_vault_id = azurerm_key_vault.immich_kv.id
+
+  depends_on = [ time_sleep.wait_for_access_policy ]
+}
+
+# wait for access policy to be established
+resource "time_sleep" "wait_for_access_policy" {
+  depends_on = [azurerm_key_vault_access_policy.admin_access_policy]
+
+  create_duration = "15s"
 }
