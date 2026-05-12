@@ -43,19 +43,6 @@ resource "azurerm_network_security_group" "immich_nsg" {
     destination_address_prefix = "*"
   }
 
-  # allow 2283 tcp port for access to the app (default immich port)
-  security_rule {
-    name                       = "Immich"
-    priority                   = 1002
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "Tcp"
-    source_port_range          = "*"
-    destination_port_range     = var.immich_port
-    source_address_prefix      = "*"
-    destination_address_prefix = "*"
-  }
-
   # open port 80 for http connecitons to nginx
   security_rule {
     name                       = "HTTP"
