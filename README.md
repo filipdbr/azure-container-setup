@@ -67,6 +67,7 @@ The infrastructure is built on **Microsoft Azure**.
 
 | Component | Resource | Description |
 | :--- | :--- | :--- |
+| **Identity** | Managed Service Identity (MSI) | Passwordless authentication allowing the VM to securely fetch secrets from Azure. |
 | **Networking** | Virtual Network & Subnet | Isolated cloud environment providing a private space for the server. |
 | **Security** | Network Security Group | Layer 4 firewall strictly allowing traffic on ports 22 (SSH) and 2283 (Immich). |
 | **Connectivity** | Public IP | Dynamic entry point that enables external access to the web interface. |
@@ -90,22 +91,27 @@ Build a reproducible environment that can be deployed from scratch without manua
 
 ```text
 .
-├── app/
-│   ├── docker-compose.yml     # Application stack (Immich + Proxy)
-│   └── .env.example           # Environment template
 ├── ansible/
-│   ├── inventory.ini          # Target VM connection details
-│   └── setup.yml              # Playbook for OS config & Docker deployment
+│   ├── azure-provision.yml    # Main playbook for OS config, secrets & Docker
+│   ├── inventory.example.ini  # Template for connection details
+│   └── README.md              # Ansible-specific documentation
+├── app/
+│   └── docker-compose.yml     # Immich microservices stack definition
 ├── docker-proxy/
-│   ├── Dockerfile             # Instructions for custom Nginx image
-│   └── nginx.conf             # Reverse proxy routing rules
-└── terraform/
-    ├── main.tf                # Providers and Resource Group
-    ├── network.tf             # VNet, Subnet, IP, and NSG
-    ├── compute.tf             # Virtual Machine and NIC
-    ├── variables.tf           # User-defined variables
-    ├── security.tf            # Azure Key Vault & ACR
-    └── outputs.tf             # Deployment results (IP & URLs)
+│   ├── Dockerfile             # Custom Nginx image with proxy config
+│   └── nginx.conf             # Routing rules (Port 80 -> Immich)
+├── logs/                      # Auto-generated logs for Terraform, Ansible & Deploy
+├── terraform/
+│   ├── main.tf                # Providers and Resource Group
+│   ├── network.tf             # VNet, Subnet, IP, and NSG (Port 80/22)
+│   ├── compute.tf             # VM, Managed Identity and NIC
+│   ├── security.tf            # Key Vault, RBAC/Access Policies & Secrets
+│   ├── containers.tf          # Azure Container Registry (ACR) configuration
+│   ├── variables.tf           # Infrastructure variables
+│   └── output.tf              # IPs, Names and URLs for Ansible/User
+├── .gitignore                 # Rules to exclude secrets and terraform state
+├── deploy.sh                  # Main bash script to run the entire pipeline
+└── README.md                  # Project overview and documentation
 ```
 
 ## Architecture Evolution: Why I Dropped Bash for Ansible
