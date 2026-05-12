@@ -73,3 +73,5 @@ if ! ansible-playbook -i inventory.ini azure-provision.yml --extra-vars "keyvaul
 else
     echo "Deployment completed successfully!"
 fi
+
+echo "Immich URL: http://$VM_IP"
