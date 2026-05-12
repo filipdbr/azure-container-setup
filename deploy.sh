@@ -2,6 +2,8 @@
 
 # the script deploy and configure infrastructure using terraform and ansible (respectively)
 
+# log script execuition
+
 # define the timestamp variable
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 
@@ -12,6 +14,12 @@ mkdir -p logs/{terraform,ansible}
 
 # define variable containing logs dir absolute path
 LOG_DIR="$(pwd)/logs"
+
+# configure main log
+MAIN_LOG="$LOG_DIR/deploy_$TIMESTAMP.log"
+exec > >(tee -a "$MAIN_LOG") 2>&1
+
+echo "--- Deployment started at $(date) ---"
 
 ### Deploy infrastructure using Terraform ###
 
