@@ -6,6 +6,8 @@
   tasks:
 
     # --- DOCKER INSTALLATION ---
+
+    # Install helper tools for secure SSL verification (ca-certs), data fetching (curl), and signature validation (gnupg)
     - name: Install required system packages
       apt:
         name:
@@ -15,20 +17,23 @@
         state: present
         update_cache: yes
 
+    # Download GPG key
     - name: Add Docker GPG key
       apt_key:
         url: https://download.docker.com/linux/ubuntu/gpg
         state: present
 
+    # Register Docker's official server as a trusted source for the 'focal' (20.04) system version
     - name: Add Docker repository
       apt_repository:
         repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable"
         state: present
 
+    # Install the Docker engine, command-line interface, container runtime, and Compose V2 plugin
     - name: Install Docker and Compose V2 plugin
       apt:
         name:
-          - docker-ce
+          - docker-ce           # installing the package will automatically start and enable docker (autostart after reboot)
           - docker-ce-cli
           - containerd.io
           - docker-compose-plugin
@@ -55,14 +60,15 @@
         src: "{{ playbook_dir }}/../docker-proxy/"
         dest: /opt/docker_proxy/
 
-    # --- DYNAMIC SECRET FETCHING (No CLI required) ---
+    # --- DYNAMIC SECRET FETCHING  ---
 
     - name: Get Access Token from Azure Metadata Service
       uri:
+        # this specific URL is used by major cloud providers—including Google Cloud Platform (GCP), AWS, and Azure—to host an Instance Metadata Service
         url: "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https://vault.azure.net"
         headers:
           Metadata: "true"
-      register: token_response
+      register: token_response    # save the tocken in var token_response
 
     - name: Fetch password from Key Vault via REST API
       uri:
@@ -71,7 +77,7 @@
         headers:
           Authorization: "Bearer {{ token_response.json.access_token }}"
       register: vault_db_password
-      no_log: true # do not put pwd explicitly in the logs
+      no_log: true                # for security purposes do not put pwd explicitly in the logs
 
     - name: Create .env file on the remote server
       copy:
@@ -86,15 +92,25 @@
         mode: '0600'
 
     # --- EXECUTION ---
+
+    # Even though the service is automatically started in the task Install Docker and Compose V2 plugin we will start it expicitely
+    - name: Ensure Docker is running
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    # Compse the immich docker-compse file
     - name: Start Immich via Docker Compose
       command: docker compose up -d
       args:
         chdir: /opt/app
 
+    # Build the image and start nginx container 
     - name: Build and Start Nginx Proxy
       shell: |
         docker image build -t immich-proxy .
         docker rm -f immich-proxy || true
-        docker run -d --name immich-proxy -p 80:80 --network immich_default immich-proxy
+        docker container run -d --name immich-proxy -p 80:80 --network immich_default immich-proxy
       args:
         chdir: /opt/docker_proxy
