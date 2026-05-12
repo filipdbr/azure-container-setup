@@ -74,4 +74,5 @@ else
     echo "Deployment completed successfully!"
 fi
 
+# inform the end user of Immich URL
 echo "Immich URL: http://$VM_IP"
