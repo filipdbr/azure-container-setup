@@ -114,7 +114,7 @@ Build a reproducible environment that can be deployed from scratch without manua
 └── README.md                  # Project overview and documentation
 ```
 
-## Architecture Evolution: Why I Dropped Bash for Ansible
+## Architecture Evolution: Switch from Bash to Ansible
 
 When I started this project, I tried to do everything in Terraform. I used the `custom_data` block to pass a massive `provision.sh` script to the VM on startup. At first, it seemed fine — just a quick way to install a few packages.
 
@@ -128,22 +128,28 @@ The workflow is now much cleaner and strictly divided into two stages:
 
 ## Workflow
 
-With the new architecture in place, deploying the environment from scratch is a smooth, three-step process:
+With the new architecture and the orchestration script, the deployment is now a fully automated process. The `deploy.sh` script coordinates the handoff between tools:
 
-1. **Building the Foundation (Terraform):** I run `terraform apply`. This sets up the Azure Virtual Machine, configures the network security, provisions the Key Vault, and sets up the Container Registry (ACR). It hands me back the VM's new public IP.
-2. **Prepping the Proxy (Docker):** I build my custom Nginx reverse proxy image locally and push it directly to my new ACR. 
-3. **Connecting the Dots (Ansible):** I run my Ansible playbook against the VM's IP. Ansible logs in via SSH, sets up the Ubuntu OS, installs Docker, authenticates with ACR, safely copies my local `docker-compose.yml`, and spins up the entire Immich stack. No more praying that a startup script didn't fail silently in the background!
+1. **Infrastructure Orchestration (Terraform)**:
+   The process starts by provisioning the Azure foundation. Terraform creates the VM, Network, Key Vault (with a randomly generated DB password), and ACR. It also assigns a **Managed Service Identity (MSI)** to the VM, allowing it to communicate with Azure services without hardcoded credentials.
+
+2. **Configuration & Security (Ansible)**:
+   Once the VM is ready, Ansible takes over via SSH. It performs a **secure secret handshake**: using the VM's Managed Identity, it fetches the database password directly from Azure Key Vault via REST API. It then generates a secure `.env` file with `0600` permissions directly on the server.
+
+3. **Application Deployment (Docker)**:
+   In the final stage, Ansible copies the `docker-compose.yml` and builds the custom Nginx Proxy image directly on the target machine. It then spins up the Immich stack within a private Docker network, ensuring that only the Proxy is exposed to the internet on port 80.
 
 ## Project Progress
 
 ### Completed
 - [x] **Infrastructure as Code**: Terraform successfully deploys the Virtual Machine, ACR, Key Vault, and all required network components.
-- [x] **Security Configuration**: Network Security Group restricts traffic strictly to required ports, and secrets are managed via Azure Key Vault.
-- [x] **Reverse Proxy**: Built a custom Nginx image to hide Immich behind a single entry point on port 80.
-- [x] **Architecture Refactor**: Completely ripped out legacy Bash scripts and `custom_data` from Terraform to enforce a clean Separation of Concerns.
+- [x] **Identity & Security**: Implemented **Managed Service Identity (MSI)** for passwordless authentication and moved to a secure **RBAC/Access Policy** model in Key Vault.
+- [x] **Configuration Management**: Developed Ansible playbooks to automate OS hardening, Docker installation, and secret retrieval via REST API.
+- [x] **Orchestration**: Created a master `deploy.sh` script with integrated logging to coordinate Terraform and Ansible runs.
+- [x] **Reverse Proxy**: Built a custom Nginx image to handle routing and hide Immich microservices behind port 80.
+- [x] **Documentation**: Fully updated the README with Prerequisites, Quick Start guide, and detailed Workflow descriptions.
 
 ### To Do
-- [x] **Configuration Management**: Write the actual Ansible playbooks (`setup.yml`) to automate the Docker installation and container deployment.
-- [ ] **Documentation**: Update documentation, describe Ansible playbooks, updates in Key Vault and updates in the shell script.
-- [ ] **Persistent Storage**: Attach dedicated Azure storage (like Azure Files or Managed Disks) so photo backups aren't lost if the VM dies.
-- [ ] **CI/CD Pipeline**: Automate the Docker image build and push process to ACR using GitHub Actions.
+- [ ] **Persistent Storage**: Attach dedicated Azure storage (e.g., Azure Managed Disks or Azure Files) to ensure photo backups persist even if the VM is recreated.
+- [ ] **Automated Backups**: Implement a strategy for backing up the Immich PostgreSQL database to Azure Blob Storage.
+- [ ] **CI/CD Pipeline**: Integrate GitHub Actions to automate the testing of Terraform plans and Docker image builds on every push.
