@@ -153,3 +153,4 @@ With the new architecture and the orchestration script, the deployment is now a 
 - [ ] **Persistent Storage**: Attach dedicated Azure storage (e.g., Azure Managed Disks or Azure Files) to ensure photo backups persist even if the VM is recreated.
 - [ ] **Automated Backups**: Implement a strategy for backing up the Immich PostgreSQL database to Azure Blob Storage.
 - [ ] **CI/CD Pipeline**: Integrate GitHub Actions to automate the testing of Terraform plans and Docker image builds on every push.
+- [ ] **Optimize Registry Usage**: Shift from local Docker builds on the VM to pulling pre-built images from Azure Container Registry (ACR).
