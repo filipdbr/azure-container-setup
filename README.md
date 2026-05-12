@@ -54,6 +54,18 @@ Follow these steps to clone the repository and deploy the entire stack:
     The script will display the server's Public IP upon completion. Open your browser and go to:
     `http://<YOUR_VM_IP>`
 
+## IMPORANT: Cleanup
+
+Infrastructure in Azure incurs costs as long as the resources exist. **To avoid unexpected charges**, ensure you destroy the environment once you are finished testing.
+
+Navigate to the Terraform directory and destroy all resources:
+```bash
+cd terraform
+terraform destroy -auto-approve
+```
+
+**Important: This command will permanently remove all provisioned resources**, including the Virtual Machine, Key Vault, and Azure Container Registry. Make sure you have backed up any important data (e.g., photos uploaded to Immich) before running this. 
+
 ## Scope
 
 1. Define and provision infrastructure in Azure using Terraform.
