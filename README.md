@@ -7,6 +7,8 @@ Repository: https://github.com/immich-app/immich
 The focus is on managing the full lifecycle: provisioning infrastructure, deploying services, and automating the process end-to-end.
 
 ## Table of Contents
+- [Prerequisites](#prerequisites)
+- [Quick Start](#quick-start)
 - [Scope](#scope)
 - [Infrastructure Components](#infrastructure-components)
 - [Tech Stack](#tech-stack)
@@ -15,6 +17,42 @@ The focus is on managing the full lifecycle: provisioning infrastructure, deploy
 - [Architecture Evolution: Why I Dropped Bash for Ansible](#architecture-evolution-why-i-dropped-bash-for-ansible)
 - [Workflow](#workflow)
 - [Project Progress](#project-progress)
+
+## Prerequisites
+
+Before running the deployment, ensure you have the following tools installed on your local machine:
+
+* **Terraform**: Required for infrastructure provisioning. [Official Installation Guide](https://developer.hashicorp.com/terraform/downloads)
+* **Ansible**: Required for server configuration and application deployment. [Official Installation Guide](https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html)
+* **Azure CLI**: Needed to authenticate with your Azure account and manage resources. [Official Installation Guide](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli)
+
+## Quick Start
+
+Follow these steps to clone the repository and deploy the entire stack:
+
+1. **Clone the Repository**:
+   Navigate to the directory where you want to keep the project and run:
+   ```bash
+   git clone https://github.com/filipdbr/azure-container-setup.git
+   cd azure-container-setup
+   ```
+
+2. **Authenticate with Azure:**
+    Ensure you are logged into your Azure account:
+    ```bash
+    az login
+    ```
+
+3. **Deploy:**
+    Grant execution permissions to the orchestration script and run it:
+    ```bash
+    chmod +x deploy.sh
+    ./deploy.sh
+    ```
+
+4. **Access Immich:**
+    The script will display the server's Public IP upon completion. Open your browser and go to:
+    `http://<YOUR_VM_IP>`
 
 ## Scope
 
