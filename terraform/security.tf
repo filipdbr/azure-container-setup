@@ -66,7 +66,7 @@ resource "azurerm_key_vault_secret" "immich_db_pass" {
   value        = random_password.db_pass_generator.result
   key_vault_id = azurerm_key_vault.immich_kv.id
 
-  depends_on = [ time_sleep.wait_for_access_policy ]
+  depends_on = [time_sleep.wait_for_access_policy]
 }
 
 # wait for access policy to be established
@@ -74,4 +74,31 @@ resource "time_sleep" "wait_for_access_policy" {
   depends_on = [azurerm_key_vault_access_policy.admin_access_policy]
 
   create_duration = "15s"
+}
+
+### service principal for github actions ###
+
+# get data about the current subscription
+data "azurerm_subscription" "current" {}
+
+# register github actions in Entra ID
+resource "azuread_application" "github_actions" {
+  display_name = "github-actions"
+}
+
+# create service principal
+resource "azuread_service_principal" "github_actions_service_principal" {
+  client_id = azuread_application.github_actions.client_id
+}
+
+# grant contributor role to github actions as it will save images to ACR
+resource "azurerm_role_assignment" "github_actions_role" {
+  scope                = data.azurerm_subscription.current.id
+  role_definition_name = "Contributor"
+  principal_id         = azuread_service_principal.github_actions_service_principal.object_id
+}
+
+# generate password for github actions
+resource "azuread_service_principal_password" "github_actions_pw" {
+  service_principal_id = azuread_service_principal.github_actions_service_principal.id
 }
