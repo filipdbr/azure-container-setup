@@ -1,0 +1,27 @@
+name: Build and push nginx to ACR
+on:
+    push:
+        branches: [ "main", "feature/githubactions" ]
+        paths:
+            - 'docker-proxy/**'         # track chagnes inside this repo
+
+jobs:
+    build-and-push:
+        runs-on: ubuntu-latest
+        steps:
+
+            # the lastest stable version of the action is v4
+            - name: Checkout the repo
+              uses: actions/checkout@v6
+
+            # the lastest stable version of the action is v3
+            - name: Log into Azure
+              uses: azure/login@v3
+              with: 
+                creds: ${{ secrets.AZURE_CREDENTIALS }}
+            
+            - name: Build the image and push it to ACR
+              run: |
+                az acr login --name ${{ secrets.ACR_NAME }}
+                docker build -t ${{ secrets.ACR_NAME }}.azurecr.io/immich-proxy:latest ./docker-proxy
+                docker push ${{ secrets.ACR_NAME }}.azurecr.io/immich-proxy:latest
