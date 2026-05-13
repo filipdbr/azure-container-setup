@@ -12,6 +12,7 @@ output "immich_url" {
 
 output "keyvault_name" {
   value = azurerm_key_vault.immich_kv.name
+  sensitive = true
 }
 
 # after apply we can use terrform output -json azure_cred to get a JSON needed for github actions 
@@ -23,4 +24,10 @@ output "azure_cred" {
     subscriptionId = data.azurerm_subscription.current.subscription_id
     tenantId       = data.azurerm_client_config.current.tenant_id
   }
+}
+
+# ACR name for github
+output "acr_name" {
+  value = azurerm_container_registry.immich_acr.name
+  sensitive = true
 }
