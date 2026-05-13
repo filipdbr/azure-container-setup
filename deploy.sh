@@ -40,6 +40,22 @@ if ! terraform apply -auto-approve; then
     exit 1
 fi
 
+### run github actions ###
+echo "Updating secrets in GitHub..."
+ARM_CREDS=$(terraform output -json azure_cred)
+
+# set credentials in GitHub
+echo "$ARM_CREDS" | gh secret set AZURE_CREDENTIALS
+
+ACR_NAME=$(terraform output -raw acr_name)
+echo "$ACR_NAME" | gh secret set ACR_NAME
+
+# send code and run a workflow
+echo "Push code to Github..."
+git add .
+git commit -m "chore: trigger deployment" --allow-empty
+git push --force
+
 # assign a variable: IP of the newly created VM
 VM_IP=$(terraform output -raw public_ip_address)
 
