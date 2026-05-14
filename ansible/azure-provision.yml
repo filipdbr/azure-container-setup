@@ -99,6 +99,12 @@
       args:
         chdir: /opt/app
 
+    # install azure cli in order to get acces to ACR
+    - name: Install Azure cli
+      shell: curl -sL https://aka.ms/InstallAzureCLIDeb | bash
+      args:
+        creates: /usr/bin/az
+
     # pull and start nginx using ACR
     - name: Login to ACR via Managed Identity
       shell: |
