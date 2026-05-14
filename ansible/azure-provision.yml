@@ -41,24 +41,17 @@
         update_cache: yes
 
 # --- FILE DEPLOYMENT ---
-    - name: Create target directories on the server
-      file:
-        path: "{{ item }}"
+
+    - name: Create target directory on the server
+      copy:
+        path: /opt/app
         state: directory
         mode: '0755'
-      loop:
-        - /opt/app
-        - /opt/docker_proxy
 
     - name: Copy docker-compose.yml
       copy:
         src: "{{ playbook_dir }}/../app/docker-compose.yml"
         dest: /opt/app/docker-compose.yml
-
-    - name: Copy proxy configuration files
-      copy:
-        src: "{{ playbook_dir }}/../docker-proxy/"
-        dest: /opt/docker_proxy/
 
     # --- DYNAMIC SECRET FETCHING  ---
 
@@ -106,11 +99,18 @@
       args:
         chdir: /opt/app
 
-    # Build the image and start nginx container 
-    - name: Build and Start Nginx Proxy
+    # pull and start nginx using ACR
+    - name: Login to ACR via Managed Identity
       shell: |
-        docker image build -t immich-proxy .
+        az login --identity
+        az acr login --name {{ acr_name }}
+
+    - name: Pull and Start Nginx Proxy
+      shell: |
+        docker pull {{ acr_name }}.azurecr.io/immich-proxy:latest
         docker rm -f immich-proxy || true
-        docker container run -d --name immich-proxy -p 80:80 --network immich_default immich-proxy
-      args:
-        chdir: /opt/docker_proxy
+        docker container run -d \
+          --name immich-proxy \
+          -p 80:80 \
+          --network immich_default \
+          {{ acr_name }}.azurecr.io/immich-proxy:latest
