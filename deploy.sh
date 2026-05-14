@@ -54,7 +54,13 @@ echo "$ACR_NAME" | gh secret set ACR_NAME
 echo "Push code to Github..."
 git add .
 git commit -m "chore: trigger deployment" --allow-empty
-git push --force
+git push
+
+echo "Triggering Docker build workflow..."
+gh workflow run "Build and push nginx to ACR" --ref main
+echo "Waiting for workflow to finish..."
+sleep 15 
+gh run watch $(gh run list --workflow="Build and push nginx to ACR" --limit 1 --json databaseId -q '.[0].databaseId')
 
 # assign a variable: IP of the newly created VM
 VM_IP=$(terraform output -raw public_ip_address)
@@ -83,7 +89,7 @@ echo "Server configuration in progress..."
 cd ../ansible || exit
 
 # run the Ansible playbook and catch any potential errors
-if ! ansible-playbook -i inventory.ini azure-provision.yml --extra-vars "keyvault_name=$KV_NAME"; then
+if ! ansible-playbook -i inventory.ini azure-provision.yml --extra-vars "keyvault_name=$KV_NAME acr_name=$ACR_NAME"; then
     echo "Error: Ansible provisioning failed. You can check the playbook logs here: $ANSIBLE_LOG_PATH"
     exit 1
 else
