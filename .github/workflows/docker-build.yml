@@ -4,6 +4,7 @@ on:
     branches: [ "main", "feature/githubactions" ]
     paths:
       - 'docker-proxy/**'         # track chagnes inside this repo
+  workflow_dispatch:              # allows trigerring workflow manually
 
 jobs:
   build-and-push:
