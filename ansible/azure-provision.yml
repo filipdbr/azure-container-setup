@@ -43,7 +43,7 @@
 # --- FILE DEPLOYMENT ---
 
     - name: Create target directory on the server
-      copy:
+      file:
         path: /opt/app
         state: directory
         mode: '0755'
