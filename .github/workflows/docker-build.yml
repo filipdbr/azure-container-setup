@@ -1,7 +1,7 @@
 name: Build and push nginx to ACR
 on:
   push:
-    branches: [ "main", "feature/githubactions" ]
+    branches: [ "main"]
     paths:
       - 'docker-proxy/**'         # track chagnes inside this repo
   workflow_dispatch:              # allows trigerring workflow manually
