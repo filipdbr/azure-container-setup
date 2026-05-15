@@ -18,7 +18,7 @@ services:
     #   service: cpu # set to one of [nvenc, quicksync, rkmpp, vaapi, vaapi-wsl] for accelerated transcoding
     volumes:
       # Do not edit the next line. If you want to change the media storage location on your system, edit the value of UPLOAD_LOCATION in the .env file
-      - ${UPLOAD_LOCATION}:/data
+      - immich-photos:/data
       - /etc/localtime:/etc/localtime:ro
     env_file:
       - .env
@@ -74,3 +74,12 @@ services:
 
 volumes:
   model-cache:
+  # Mounting Azure File Share directly to the container to keep photos off-server.
+  # Using CIFS with vers=3.0 for Azure compatibility and uid/gid=1000 so Immich doesn't run into any "Permission Denied"
+  # Credentials and paths are passed dynamically from the Terraform/Ansible layer.
+  immich-photos:
+    driver: local
+    driver_opts:
+      type: cifs
+      device: //${STORAGE_ACCOUNT}.file.core.windows.net/${STORAGE_SHARE}
+      o: "username=${STORAGE_ACCOUNT},password=${STORAGE_KEY},vers=3.0,uid=1000,gid=1000"

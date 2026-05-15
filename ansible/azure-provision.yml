@@ -37,6 +37,7 @@
           - docker-ce-cli
           - containerd.io
           - docker-compose-plugin
+          - cifs-utils
         state: present
         update_cache: yes
 
@@ -63,13 +64,22 @@
           Metadata: "true"
       register: token_response    # save the tocken in var token_response
 
-    - name: Fetch password from Key Vault via REST API
+    - name: Fetch database password from Key Vault via REST API
       uri:
         url: "https://{{ keyvault_name }}.vault.azure.net/secrets/immich-db-pass?api-version=7.4"
         method: GET
         headers:
           Authorization: "Bearer {{ token_response.json.access_token }}"
       register: vault_db_password
+      no_log: true                # for security purposes do not put pwd explicitly in the logs
+
+    - name: Fetch file share password from Key Vault via REST API
+      uri:
+        url: "https://{{ keyvault_name }}.vault.azure.net/secrets/{{ immich_storage_key_name }}?api-version=7.4"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ token_response.json.access_token }}"
+      register: vault_storage_key
       no_log: true                # for security purposes do not put pwd explicitly in the logs
 
     - name: Create .env file on the remote server
@@ -82,6 +92,9 @@
           DB_PASSWORD={{ vault_db_password.json.value }}
           DB_USERNAME=postgres
           DB_DATABASE_NAME=immich
+          STORAGE_KEY={{ vault_storage_key.json.value }}
+          STORAGE_SHARE={{ file_share_name }}
+          STORAGE_ACCOUNT={{ storage_account_name }}
         mode: '0600'
 
     # --- EXECUTION ---

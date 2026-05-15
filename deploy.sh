@@ -73,10 +73,13 @@ else
     echo "Infrastructure deployed successfully. Server IP: $VM_IP"
 fi
 
-# get key vault name
-KV_NAME=$(terraform output -raw keyvault_name)
-
 ### Provision the server using Ansible ###
+
+# get storage variables
+KV_NAME=$(terraform output -raw keyvault_name)
+STORAGE_KEY_NAME=$(terraform output -raw image_storage_key_name)
+STORAGE_SHARE_NAME=$(terraform output -raw file_share_name)
+STORAGE_ACCOUNT_NAME=$(terraform output -raw storage_account_name)
 
 # SSH daemon need time to boot up - wait 30 s
 echo "Waiting 30 seconds for SSH to be ready on the VM..."
@@ -89,7 +92,13 @@ echo "Server configuration in progress..."
 cd ../ansible || exit
 
 # run the Ansible playbook and catch any potential errors
-if ! ansible-playbook -i inventory.ini azure-provision.yml --extra-vars "keyvault_name=$KV_NAME acr_name=$ACR_NAME"; then
+if ! ansible-playbook -i inventory.ini azure-provision.yml --extra-vars " \
+    keyvault_name=$KV_NAME \
+    acr_name=$ACR_NAME \
+    immich_storage_key_name=$STORAGE_KEY_NAME \
+    file_share_name=$STORAGE_SHARE_NAME \
+    storage_account_name=$STORAGE_ACCOUNT_NAME"; then
+    
     echo "Error: Ansible provisioning failed. You can check the playbook logs here: $ANSIBLE_LOG_PATH"
     exit 1
 else
