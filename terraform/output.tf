@@ -31,3 +31,13 @@ output "acr_name" {
   value = azurerm_container_registry.immich_acr.name
   sensitive = true
 }
+
+output "file_share_name" {
+  value = azurerm_storage_share.immich_file_share.name
+  sensitive = true
+}
+
+output "image_storage_key_name" {
+  value = azurerm_key_vault_secret.storage_key.name
+  sensitive = true
+}
