@@ -61,7 +61,7 @@ Infrastructure in Azure incurs costs as long as the resources exist. **To avoid 
 Navigate to the Terraform directory and destroy all resources:
 ```bash
 cd terraform
-terraform destroy -auto-approve
+terraform destroy --auto-approve
 ```
 
 **Important: This command will permanently remove all provisioned resources**, including the Virtual Machine, Key Vault, and Azure Container Registry. Make sure you have backed up any important data (e.g., photos uploaded to Immich) before running this. 
