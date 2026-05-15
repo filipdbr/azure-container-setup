@@ -8,7 +8,7 @@ resource "azurerm_storage_account" "immich_storage_acc" {
 }
 
 resource "azurerm_storage_share" "immich_file_share" {
-  name               = "immich-storage-share"
+  name               = "immich-photos"
   storage_account_id = azurerm_storage_account.immich_storage_acc.id
   quota              = 5 # small size (5 GB) as it's for a lab only
 }
