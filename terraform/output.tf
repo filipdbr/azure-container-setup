@@ -11,7 +11,7 @@ output "immich_url" {
 }
 
 output "keyvault_name" {
-  value = azurerm_key_vault.immich_kv.name
+  value     = azurerm_key_vault.immich_kv.name
   sensitive = true
 }
 
@@ -28,16 +28,21 @@ output "azure_cred" {
 
 # ACR name for github
 output "acr_name" {
-  value = azurerm_container_registry.immich_acr.name
+  value     = azurerm_container_registry.immich_acr.name
   sensitive = true
 }
 
 output "file_share_name" {
-  value = azurerm_storage_share.immich_file_share.name
+  value     = azurerm_storage_share.immich_file_share.name
   sensitive = true
 }
 
 output "image_storage_key_name" {
-  value = azurerm_key_vault_secret.storage_key.name
+  value     = azurerm_key_vault_secret.storage_key.name
+  sensitive = true
+}
+
+output "storage_account_name" {
+  value     = azurerm_storage_account.immich_storage_acc.name
   sensitive = true
 }
