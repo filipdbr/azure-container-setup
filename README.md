@@ -26,8 +26,11 @@ Before running the deployment, ensure you have the following tools installed on 
 * **Ansible**: Required for server configuration and application deployment. [Official Installation Guide](https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html)
 * **Azure CLI**: Needed to authenticate with your Azure account and manage resources. [Official Installation Guide](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli)
 * **GitHub CLI:** Required by the deployment script to automate secret management and trigger GitHub Actions workflows from your terminal. [Official Installation Guide](https://cli.github.com/)
+* **SSH Public Key**: A local public key (`~/.ssh/id_rsa.pub`) must exist on your machine. Terraform uses it to provision the Azure VM, enabling passwordless SSH access for Ansible.
 
 ## Quick Start
+
+> **Important GitHub Setup**: Before running the deployment, ensure your repository has Actions enabled and the **Workflow permissions** are set to *Read and write permissions* (Go to your repo Settings -> Actions -> General -> Workflow permissions). This allows the GitHub CLI to automatically configure secrets and trigger pipelines.
 
 Follow these steps to clone the repository and deploy the entire stack:
 
