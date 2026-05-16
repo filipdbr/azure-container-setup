@@ -133,6 +133,7 @@ Build a reproducible environment that can be deployed from scratch without manua
 ├── .gitignore                 # Rules to exclude local secrets and terraform state files
 ├── deploy.sh                  # Main orchestrator script running the entire pipeline
 └── README.md                  # Main project overview and documentation
+```
 
 ## Workflow
 
