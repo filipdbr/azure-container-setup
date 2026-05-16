@@ -6,18 +6,125 @@ Repository: https://github.com/immich-app/immich
 
 The focus is on managing the full lifecycle: provisioning infrastructure, deploying services, and automating the process end-to-end.
 
+## Goal
+
+Build a reproducible environment that can be deployed from scratch without manual steps and runs reliably in the cloud.
+
 ## Table of Contents
-- [Prerequisites](#prerequisites)
-- [Quick Start](#quick-start)
-- [IMPORTANT: Cleanup](#important-cleanup)
-- [Architecture Overview](#architecture-overviews)
-- [Infrastructure Components](#infrastructure-components)
-- [Customization & Variables](#customization--variables)
+- [Goal](#goal)
+- [Architecture Overview](#architecture-overview)
 - [Tech Stack](#tech-stack)
 - [Repository Structure](#repository-structure)
+- [Infrastructure Components](#infrastructure-components)
 - [Workflow](#workflow)
-- [Architecture Evolution: Switch from Bash to Ansible](#architecture-evolution-switch-from-bash-to-ansible)
+- [Architecture Evolution](#architecture-evolution)
+- [Customization & Variables](#customization--variables)
+- [Prerequisites](#prerequisites)
+- [Quick Start](#quick-start)
+- [IMPORTANT: Cleanup](#imporant-cleanup)
 - [Project Progress](#project-progress)
+
+## Architecture Overview
+
+The project is built on a stateless, secure, and fully automated cloud architecture:
+* **Infrastructure as Code:** Terraform provisions the core Azure resources, including an automated Resource Group, Virtual Machine, Azure Container Registry (ACR), and Key Vault.
+* **Orchestrated CI/CD:** A custom Bash script utilizes the GitHub CLI (`gh`) to trigger GitHub Actions asynchronously, building the Docker proxy image and pushing it to ACR before configuration begins.
+* **Configuration Management:** Ansible configures the remote server, installs the Docker engine, securely fetches secrets from Key Vault via REST API using Managed Identity, and deploys the application stack.
+* **Persistent Cloud Storage:** Photos and media are stored externally using an Azure File Share, mounted directly into the Docker container via a named CIFS volume to keep the application server stateless.
+
+## Tech stack
+
+- **Cloud:** Microsoft Azure  
+- **CI/CD Pipeline:** GitHub Actions & GitHub CLI
+- **IaC:** Terraform  
+- **Configuration Management:** Ansible
+- **Containers:** Docker  
+- **Reverse Proxy:** Nginx
+- **Application:** Immich (microservices + AI components)  
+
+## Repository Structure
+
+```text
+.
+├── .github/
+│   └── workflows/
+│       └── docker-build.yml   # CI/CD pipeline for building and pushing the proxy image
+├── ansible/
+│   ├── azure-provision.yml    # Main playbook for OS config, secrets & Docker setup
+│   ├── inventory.example.ini  # Template for VM connection details
+│   └── README.md              # Ansible-specific documentation
+├── app/
+│   └── docker-compose.yml     # Immich microservices stack with persistent CIFS volume
+├── docker-proxy/
+│   ├── Dockerfile             # Custom Nginx image setup
+│   └── nginx.conf             # Reverse proxy routing rules (Port 80 -> Immich)
+├── logs/                      # Auto-generated logs for Terraform, Ansible & Deploy scripts
+├── terraform/
+│   ├── main.tf                # Azure providers and Resource Group definition
+│   ├── network.tf             # VNet, Subnet, Public IP, and NSG rules (80/22)
+│   ├── compute.tf             # VM instance, Managed Identity, and Network Interface
+│   ├── security.tf            # Key Vault, Access Policies, and secret definitions
+│   ├── containers.tf          # Azure Container Registry (ACR) configuration
+│   ├── storage.tf             # Azure Storage Account and File Share for persistence
+│   ├── variables.tf           # Infrastructure input variables
+│   └── output.tf              # Exposed IPs, resource names, and keys for Ansible
+├── .gitignore                 # Rules to exclude local secrets and terraform state files
+├── deploy.sh                  # Main orchestrator script running the entire pipeline
+└── README.md                  # Main project overview and documentation
+```
+
+## Infrastructure Components
+
+The infrastructure is built on **Microsoft Azure**.
+
+| Component | Resource | Description |
+| :--- | :--- | :--- |
+| **Identity** | Managed Service Identity (MSI) | Passwordless authentication allowing the VM to securely fetch secrets from Azure. |
+| **Networking** | Virtual Network & Subnet | Isolated cloud environment providing a private space for the server. |
+| **Security** | Network Security Group | Layer 4 firewall strictly allowing traffic on ports 22 (SSH) and 2283 (Immich). |
+| **Connectivity** | Public IP | Dynamic entry point that enables external access to the web interface. |
+| **Storage** | Azure Container Registry | Private registry to store custom images (e.g., Nginx Reverse Proxy). |
+| **Secrets** | Azure Key Vault | Secure storage for database passwords and sensitive environment variables. |
+
+## Workflow
+
+With the new cloud-native architecture and the orchestrator script, the deployment is now a fully synchronous, automated process. The `deploy.sh` script coordinates the handoff between tools:
+
+1. **Infrastructure Provisioning (Terraform):**
+   The process starts by provisioning the Azure foundation. Terraform creates the VM, Network, Key Vault, and ACR. It also provisions an Azure Storage Account and File Share for persistent media storage, and assigns a **Managed Identity** to the VM so it can pull images and access secrets without hardcoded credentials.
+
+2. **CI/CD Synchronization (GitHub Actions & GitHub CLI):**
+   Once the infrastructure layer is live, the script extracts the resource names, pushes the code to GitHub, and triggers the Docker build workflow using the GitHub CLI. By utilizing `gh run watch`, the local script physically pauses, monitors the cloud build in real-time, and moves forward only after the custom Nginx Proxy image is successfully baked and pushed to the Azure Container Registry (ACR).
+
+3. **Secure Configuration Management (Ansible):**
+   Ansible takes over via SSH once the cloud image is ready. It prepares the server environment by installing system dependencies like `cifs-utils` and Docker. It then executes a **secure secret handshake**: leveraging the VM's Managed Identity, it queries the Azure Key Vault via REST API to fetch both the database password and the Storage Account access key, writing them directly into a secured `.env` file (`0600` permissions) on the server.
+
+4. **Application Orchestration (Docker & Azure File Share):**
+   In the final stage, Ansible deploys the configuration. Docker Compose spins up the Immich microservices stack within a private network. Instead of local storage, Docker dynamically connects to the Azure File Share using a named CIFS/SMB volume—complete with proper mount options (`vers=3.0`, `uid/gid=1000`) to guarantee permanent, stateless data storage for your photos.
+
+## Architecture Evolution
+
+When I started this project, I tried to do everything in Terraform. I used the `custom_data` block to pass a massive `provision.sh` script to the VM on startup. At first, it seemed fine — just a quick way to install a few packages.
+
+However, as the Docker setup grew, things got out of hand. I found myself trying to inject entire YAML files into Bash scripts, encoding them in Base64 just to force them through Terraform's HCL. It quickly turned into unreadable, hard-to-debug spaghetti code. Worse, if the script failed halfway through (e.g., due to a network hiccup), my VM was left in a broken state because my Bash script wasn't naturally idempotent. 
+
+To fix solve the problem I decided to step back, wipe the slate clean, and introduce Ansible.
+
+The workflow is now much cleaner and strictly divided into two stages:
+1. **Terraform** does what it does best: it provisions the "hardware" (IaaS). It creates the VM, virtual networks, Key Vault, and ACR.
+2. **Ansible** handles the software. Once the VM is up and running, Ansible connects natively via SSH. It installs Docker, securely fetches secrets, seamlessly copies my `docker-compose.yml` directly from the local repository to the server, and orchestrates the containers.
+
+## Customization & Variables
+
+The entire infrastructure layer is fully parameterized. You don't need to touch main.tf, network.tf, or compute.tf to alter the deployment. Simply adjust the default values in the `./terraform/variables.tf` file before running the script:
+
+* `location` (Default: polandcentral) – The Azure region where all resources will be provisioned.
+* `rg_name` (Default: immich-prod) – The name of the dedicated Resource Group.
+* `admin_username` (Default: immich_admin) – The default admin user created on the Ubuntu VM for SSH connections.
+* `disk_type` (Default: Standard_LRS) – The storage type for the OS disk. Standard LRS is selected as the most cost-effective option for this lab.
+* `vm_sku` (Default: 22_04-lts) – The OS image version (Ubuntu 22.04 LTS).
+* `vm_size` (Default: Standard_D2s_v4) – The compute size of the VM (2 vCPUs, 8 GB RAM), providing plenty of horsepower for Immich's microservices and AI components.
+* `immich_port` (Default: 2283) – The default internal port used by the Immich application stack, which is safely hidden behind the Nginx Reverse Proxy (Port 80).
 
 ## Prerequisites
 
@@ -70,114 +177,6 @@ terraform destroy --auto-approve
 ```
 
 **Important: This command will permanently remove all provisioned resources**, including the Virtual Machine, Key Vault, and Azure Container Registry. Make sure you have backed up any important data (e.g., photos uploaded to Immich) before running this. 
-
-## Architecture Overview
-
-The project is built on a stateless, secure, and fully automated cloud architecture:
-* **Infrastructure as Code:** Terraform provisions the core Azure resources, including an automated Resource Group, Virtual Machine, Azure Container Registry (ACR), and Key Vault.
-* **Orchestrated CI/CD:** A custom Bash script utilizes the GitHub CLI (`gh`) to trigger GitHub Actions asynchronously, building the Docker proxy image and pushing it to ACR before configuration begins.
-* **Configuration Management:** Ansible configures the remote server, installs the Docker engine, securely fetches secrets from Key Vault via REST API using Managed Identity, and deploys the application stack.
-* **Persistent Cloud Storage:** Photos and media are stored externally using an Azure File Share, mounted directly into the Docker container via a named CIFS volume to keep the application server stateless.
-
-## Tech stack
-
-- **Cloud:** Microsoft Azure  
-- **CI/CD Pipeline:** GitHub Actions & GitHub CLI
-- **IaC:** Terraform  
-- **Configuration Management:** Ansible
-- **Containers:** Docker  
-- **Reverse Proxy:** Nginx
-- **Application:** Immich (microservices + AI components)  
-
-## Goal
-
-Build a reproducible environment that can be deployed from scratch without manual steps and runs reliably in the cloud.
-
-## Project Structure
-
-## Repository Structure
-
-```text
-.
-├── .github/
-│   └── workflows/
-│       └── docker-build.yml   # CI/CD pipeline for building and pushing the proxy image
-├── ansible/
-│   ├── azure-provision.yml    # Main playbook for OS config, secrets & Docker setup
-│   ├── inventory.example.ini  # Template for VM connection details
-│   └── README.md              # Ansible-specific documentation
-├── app/
-│   └── docker-compose.yml     # Immich microservices stack with persistent CIFS volume
-├── docker-proxy/
-│   ├── Dockerfile             # Custom Nginx image setup
-│   └── nginx.conf             # Reverse proxy routing rules (Port 80 -> Immich)
-├── logs/                      # Auto-generated logs for Terraform, Ansible & Deploy scripts
-├── terraform/
-│   ├── main.tf                # Azure providers and Resource Group definition
-│   ├── network.tf             # VNet, Subnet, Public IP, and NSG rules (80/22)
-│   ├── compute.tf             # VM instance, Managed Identity, and Network Interface
-│   ├── security.tf            # Key Vault, Access Policies, and secret definitions
-│   ├── containers.tf          # Azure Container Registry (ACR) configuration
-│   ├── storage.tf             # Azure Storage Account and File Share for persistence
-│   ├── variables.tf           # Infrastructure input variables
-│   └── output.tf              # Exposed IPs, resource names, and keys for Ansible
-├── .gitignore                 # Rules to exclude local secrets and terraform state files
-├── deploy.sh                  # Main orchestrator script running the entire pipeline
-└── README.md                  # Main project overview and documentation
-```
-
-## Infrastructure Components
-
-The infrastructure is built on **Microsoft Azure**.
-
-| Component | Resource | Description |
-| :--- | :--- | :--- |
-| **Identity** | Managed Service Identity (MSI) | Passwordless authentication allowing the VM to securely fetch secrets from Azure. |
-| **Networking** | Virtual Network & Subnet | Isolated cloud environment providing a private space for the server. |
-| **Security** | Network Security Group | Layer 4 firewall strictly allowing traffic on ports 22 (SSH) and 2283 (Immich). |
-| **Connectivity** | Public IP | Dynamic entry point that enables external access to the web interface. |
-| **Storage** | Azure Container Registry | Private registry to store custom images (e.g., Nginx Reverse Proxy). |
-| **Secrets** | Azure Key Vault | Secure storage for database passwords and sensitive environment variables. |
-
-## Customization & Variables
-
-The entire infrastructure layer is fully parameterized. You don't need to touch main.tf, network.tf, or compute.tf to alter the deployment. Simply adjust the default values in the `./terraform/variables.tf` file before running the script:
-
-* `location` (Default: polandcentral) – The Azure region where all resources will be provisioned.
-* `rg_name` (Default: immich-prod) – The name of the dedicated Resource Group.
-* `admin_username` (Default: immich_admin) – The default admin user created on the Ubuntu VM for SSH connections.
-* `disk_type` (Default: Standard_LRS) – The storage type for the OS disk. Standard LRS is selected as the most cost-effective option for this lab.
-* `vm_sku` (Default: 22_04-lts) – The OS image version (Ubuntu 22.04 LTS).
-* `vm_size` (Default: Standard_D2s_v4) – The compute size of the VM (2 vCPUs, 8 GB RAM), providing plenty of horsepower for Immich's microservices and AI components.
-* `immich_port` (Default: 2283) – The default internal port used by the Immich application stack, which is safely hidden behind the Nginx Reverse Proxy (Port 80).
-
-## Workflow
-
-With the new cloud-native architecture and the orchestrator script, the deployment is now a fully synchronous, automated process. The `deploy.sh` script coordinates the handoff between tools:
-
-1. **Infrastructure Provisioning (Terraform):**
-   The process starts by provisioning the Azure foundation. Terraform creates the VM, Network, Key Vault, and ACR. It also provisions an Azure Storage Account and File Share for persistent media storage, and assigns a **Managed Identity** to the VM so it can pull images and access secrets without hardcoded credentials.
-
-2. **CI/CD Synchronization (GitHub Actions & GitHub CLI):**
-   Once the infrastructure layer is live, the script extracts the resource names, pushes the code to GitHub, and triggers the Docker build workflow using the GitHub CLI. By utilizing `gh run watch`, the local script physically pauses, monitors the cloud build in real-time, and moves forward only after the custom Nginx Proxy image is successfully baked and pushed to the Azure Container Registry (ACR).
-
-3. **Secure Configuration Management (Ansible):**
-   Ansible takes over via SSH once the cloud image is ready. It prepares the server environment by installing system dependencies like `cifs-utils` and Docker. It then executes a **secure secret handshake**: leveraging the VM's Managed Identity, it queries the Azure Key Vault via REST API to fetch both the database password and the Storage Account access key, writing them directly into a secured `.env` file (`0600` permissions) on the server.
-
-4. **Application Orchestration (Docker & Azure File Share):**
-   In the final stage, Ansible deploys the configuration. Docker Compose spins up the Immich microservices stack within a private network. Instead of local storage, Docker dynamically connects to the Azure File Share using a named CIFS/SMB volume—complete with proper mount options (`vers=3.0`, `uid/gid=1000`) to guarantee permanent, stateless data storage for your photos.
-
-## Architecture Evolution: Switch from Bash to Ansible
-
-When I started this project, I tried to do everything in Terraform. I used the `custom_data` block to pass a massive `provision.sh` script to the VM on startup. At first, it seemed fine — just a quick way to install a few packages.
-
-However, as the Docker setup grew, things got out of hand. I found myself trying to inject entire YAML files into Bash scripts, encoding them in Base64 just to force them through Terraform's HCL. It quickly turned into unreadable, hard-to-debug spaghetti code. Worse, if the script failed halfway through (e.g., due to a network hiccup), my VM was left in a broken state because my Bash script wasn't naturally idempotent. 
-
-To fix solve the problem I decided to step back, wipe the slate clean, and introduce Ansible.
-
-The workflow is now much cleaner and strictly divided into two stages:
-1. **Terraform** does what it does best: it provisions the "hardware" (IaaS). It creates the VM, virtual networks, Key Vault, and ACR.
-2. **Ansible** handles the software. Once the VM is up and running, Ansible connects natively via SSH. It installs Docker, securely fetches secrets, seamlessly copies my `docker-compose.yml` directly from the local repository to the server, and orchestrates the containers.
 
 ## Project Progress
 
