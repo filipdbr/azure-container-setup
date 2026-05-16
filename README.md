@@ -12,6 +12,7 @@ The focus is on managing the full lifecycle: provisioning infrastructure, deploy
 - [IMPORTANT: Cleanup](#important-cleanup)
 - [Architecture Overview](#architecture-overviews)
 - [Infrastructure Components](#infrastructure-components)
+- [Customization & Variables](#customization--variables)
 - [Tech Stack](#tech-stack)
 - [Repository Structure](#repository-structure)
 - [Workflow](#workflow)
@@ -78,19 +79,6 @@ The project is built on a stateless, secure, and fully automated cloud architect
 * **Configuration Management:** Ansible configures the remote server, installs the Docker engine, securely fetches secrets from Key Vault via REST API using Managed Identity, and deploys the application stack.
 * **Persistent Cloud Storage:** Photos and media are stored externally using an Azure File Share, mounted directly into the Docker container via a named CIFS volume to keep the application server stateless.
 
-## Infrastructure Components
-
-The infrastructure is built on **Microsoft Azure**.
-
-| Component | Resource | Description |
-| :--- | :--- | :--- |
-| **Identity** | Managed Service Identity (MSI) | Passwordless authentication allowing the VM to securely fetch secrets from Azure. |
-| **Networking** | Virtual Network & Subnet | Isolated cloud environment providing a private space for the server. |
-| **Security** | Network Security Group | Layer 4 firewall strictly allowing traffic on ports 22 (SSH) and 2283 (Immich). |
-| **Connectivity** | Public IP | Dynamic entry point that enables external access to the web interface. |
-| **Storage** | Azure Container Registry | Private registry to store custom images (e.g., Nginx Reverse Proxy). |
-| **Secrets** | Azure Key Vault | Secure storage for database passwords and sensitive environment variables. |
-
 ## Tech stack
 
 - **Cloud:** Microsoft Azure  
@@ -137,6 +125,31 @@ Build a reproducible environment that can be deployed from scratch without manua
 ├── deploy.sh                  # Main orchestrator script running the entire pipeline
 └── README.md                  # Main project overview and documentation
 ```
+
+## Infrastructure Components
+
+The infrastructure is built on **Microsoft Azure**.
+
+| Component | Resource | Description |
+| :--- | :--- | :--- |
+| **Identity** | Managed Service Identity (MSI) | Passwordless authentication allowing the VM to securely fetch secrets from Azure. |
+| **Networking** | Virtual Network & Subnet | Isolated cloud environment providing a private space for the server. |
+| **Security** | Network Security Group | Layer 4 firewall strictly allowing traffic on ports 22 (SSH) and 2283 (Immich). |
+| **Connectivity** | Public IP | Dynamic entry point that enables external access to the web interface. |
+| **Storage** | Azure Container Registry | Private registry to store custom images (e.g., Nginx Reverse Proxy). |
+| **Secrets** | Azure Key Vault | Secure storage for database passwords and sensitive environment variables. |
+
+## Customization & Variables
+
+The entire infrastructure layer is fully parameterized. You don't need to touch main.tf, network.tf, or compute.tf to alter the deployment. Simply adjust the default values in the `./terraform/variables.tf` file before running the script:
+
+* `location` (Default: polandcentral) – The Azure region where all resources will be provisioned.
+* `rg_name` (Default: immich-prod) – The name of the dedicated Resource Group.
+* `admin_username` (Default: immich_admin) – The default admin user created on the Ubuntu VM for SSH connections.
+* `disk_type` (Default: Standard_LRS) – The storage type for the OS disk. Standard LRS is selected as the most cost-effective option for this lab.
+* `vm_sku` (Default: 22_04-lts) – The OS image version (Ubuntu 22.04 LTS).
+* `vm_size` (Default: Standard_D2s_v4) – The compute size of the VM (2 vCPUs, 8 GB RAM), providing plenty of horsepower for Immich's microservices and AI components.
+* `immich_port` (Default: 2283) – The default internal port used by the Immich application stack, which is safely hidden behind the Nginx Reverse Proxy (Port 80).
 
 ## Workflow
 
