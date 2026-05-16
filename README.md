@@ -9,13 +9,13 @@ The focus is on managing the full lifecycle: provisioning infrastructure, deploy
 ## Table of Contents
 - [Prerequisites](#prerequisites)
 - [Quick Start](#quick-start)
-- [Scope](#scope)
+- [IMPORTANT: Cleanup](#important-cleanup)
+- [Architecture Overview](#architecture-overviews)
 - [Infrastructure Components](#infrastructure-components)
 - [Tech Stack](#tech-stack)
-- [Goal](#goal)
-- [Project Structure](#project-structure)
-- [Architecture Evolution: Why I Dropped Bash for Ansible](#architecture-evolution-why-i-dropped-bash-for-ansible)
+- [Repository Structure](#repository-structure)
 - [Workflow](#workflow)
+- [Architecture Evolution: Switch from Bash to Ansible](#architecture-evolution-switch-from-bash-to-ansible)
 - [Project Progress](#project-progress)
 
 ## Prerequisites
@@ -25,6 +25,7 @@ Before running the deployment, ensure you have the following tools installed on 
 * **Terraform**: Required for infrastructure provisioning. [Official Installation Guide](https://developer.hashicorp.com/terraform/downloads)
 * **Ansible**: Required for server configuration and application deployment. [Official Installation Guide](https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html)
 * **Azure CLI**: Needed to authenticate with your Azure account and manage resources. [Official Installation Guide](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli)
+* **GitHub CLI:** Required by the deployment script to automate secret management and trigger GitHub Actions workflows from your terminal. [Official Installation Guide](https://cli.github.com/)
 
 ## Quick Start
 
@@ -66,12 +67,13 @@ terraform destroy --auto-approve
 
 **Important: This command will permanently remove all provisioned resources**, including the Virtual Machine, Key Vault, and Azure Container Registry. Make sure you have backed up any important data (e.g., photos uploaded to Immich) before running this. 
 
-## Scope
+## Architecture Overview
 
-1. Define and provision infrastructure in Azure using Terraform.
-2. Build and store custom container images using Azure Container Registry (ACR).
-3. Deploy and manage a multi-service application (Immich + Nginx Proxy) with Docker.
-4. Automate OS configuration and application deployment using Ansible.
+The project is built on a stateless, secure, and fully automated cloud architecture:
+* **Infrastructure as Code:** Terraform provisions the core Azure resources, including an automated Resource Group, Virtual Machine, Azure Container Registry (ACR), and Key Vault.
+* **Orchestrated CI/CD:** A custom Bash script utilizes the GitHub CLI (`gh`) to trigger GitHub Actions asynchronously, building the Docker proxy image and pushing it to ACR before configuration begins.
+* **Configuration Management:** Ansible configures the remote server, installs the Docker engine, securely fetches secrets from Key Vault via REST API using Managed Identity, and deploys the application stack.
+* **Persistent Cloud Storage:** Photos and media are stored externally using an Azure File Share, mounted directly into the Docker container via a named CIFS volume to keep the application server stateless.
 
 ## Infrastructure Components
 
@@ -89,6 +91,7 @@ The infrastructure is built on **Microsoft Azure**.
 ## Tech stack
 
 - **Cloud:** Microsoft Azure  
+- **CI/CD Pipeline:** GitHub Actions & GitHub CLI
 - **IaC:** Terraform  
 - **Configuration Management:** Ansible
 - **Containers:** Docker  
@@ -101,30 +104,51 @@ Build a reproducible environment that can be deployed from scratch without manua
 
 ## Project Structure
 
+## Repository Structure
+
 ```text
 .
+├── .github/
+│   └── workflows/
+│       └── docker-build.yml   # CI/CD pipeline for building and pushing the proxy image
 ├── ansible/
-│   ├── azure-provision.yml    # Main playbook for OS config, secrets & Docker
-│   ├── inventory.example.ini  # Template for connection details
+│   ├── azure-provision.yml    # Main playbook for OS config, secrets & Docker setup
+│   ├── inventory.example.ini  # Template for VM connection details
 │   └── README.md              # Ansible-specific documentation
 ├── app/
-│   └── docker-compose.yml     # Immich microservices stack definition
+│   └── docker-compose.yml     # Immich microservices stack with persistent CIFS volume
 ├── docker-proxy/
-│   ├── Dockerfile             # Custom Nginx image with proxy config
-│   └── nginx.conf             # Routing rules (Port 80 -> Immich)
-├── logs/                      # Auto-generated logs for Terraform, Ansible & Deploy
+│   ├── Dockerfile             # Custom Nginx image setup
+│   └── nginx.conf             # Reverse proxy routing rules (Port 80 -> Immich)
+├── logs/                      # Auto-generated logs for Terraform, Ansible & Deploy scripts
 ├── terraform/
-│   ├── main.tf                # Providers and Resource Group
-│   ├── network.tf             # VNet, Subnet, IP, and NSG (Port 80/22)
-│   ├── compute.tf             # VM, Managed Identity and NIC
-│   ├── security.tf            # Key Vault, RBAC/Access Policies & Secrets
+│   ├── main.tf                # Azure providers and Resource Group definition
+│   ├── network.tf             # VNet, Subnet, Public IP, and NSG rules (80/22)
+│   ├── compute.tf             # VM instance, Managed Identity, and Network Interface
+│   ├── security.tf            # Key Vault, Access Policies, and secret definitions
 │   ├── containers.tf          # Azure Container Registry (ACR) configuration
-│   ├── variables.tf           # Infrastructure variables
-│   └── output.tf              # IPs, Names and URLs for Ansible/User
-├── .gitignore                 # Rules to exclude secrets and terraform state
-├── deploy.sh                  # Main bash script to run the entire pipeline
-└── README.md                  # Project overview and documentation
-```
+│   ├── storage.tf             # Azure Storage Account and File Share for persistence
+│   ├── variables.tf           # Infrastructure input variables
+│   └── output.tf              # Exposed IPs, resource names, and keys for Ansible
+├── .gitignore                 # Rules to exclude local secrets and terraform state files
+├── deploy.sh                  # Main orchestrator script running the entire pipeline
+└── README.md                  # Main project overview and documentation
+
+## Workflow
+
+With the new cloud-native architecture and the orchestrator script, the deployment is now a fully synchronous, automated process. The `deploy.sh` script coordinates the handoff between tools:
+
+1. **Infrastructure Provisioning (Terraform):**
+   The process starts by provisioning the Azure foundation. Terraform creates the VM, Network, Key Vault, and ACR. It also provisions an Azure Storage Account and File Share for persistent media storage, and assigns a **Managed Identity** to the VM so it can pull images and access secrets without hardcoded credentials.
+
+2. **CI/CD Synchronization (GitHub Actions & GitHub CLI):**
+   Once the infrastructure layer is live, the script extracts the resource names, pushes the code to GitHub, and triggers the Docker build workflow using the GitHub CLI. By utilizing `gh run watch`, the local script physically pauses, monitors the cloud build in real-time, and moves forward only after the custom Nginx Proxy image is successfully baked and pushed to the Azure Container Registry (ACR).
+
+3. **Secure Configuration Management (Ansible):**
+   Ansible takes over via SSH once the cloud image is ready. It prepares the server environment by installing system dependencies like `cifs-utils` and Docker. It then executes a **secure secret handshake**: leveraging the VM's Managed Identity, it queries the Azure Key Vault via REST API to fetch both the database password and the Storage Account access key, writing them directly into a secured `.env` file (`0600` permissions) on the server.
+
+4. **Application Orchestration (Docker & Azure File Share):**
+   In the final stage, Ansible deploys the configuration. Docker Compose spins up the Immich microservices stack within a private network. Instead of local storage, Docker dynamically connects to the Azure File Share using a named CIFS/SMB volume—complete with proper mount options (`vers=3.0`, `uid/gid=1000`) to guarantee permanent, stateless data storage for your photos.
 
 ## Architecture Evolution: Switch from Bash to Ansible
 
@@ -138,31 +162,15 @@ The workflow is now much cleaner and strictly divided into two stages:
 1. **Terraform** does what it does best: it provisions the "hardware" (IaaS). It creates the VM, virtual networks, Key Vault, and ACR.
 2. **Ansible** handles the software. Once the VM is up and running, Ansible connects natively via SSH. It installs Docker, securely fetches secrets, seamlessly copies my `docker-compose.yml` directly from the local repository to the server, and orchestrates the containers.
 
-## Workflow
-
-With the new architecture and the orchestration script, the deployment is now a fully automated process. The `deploy.sh` script coordinates the handoff between tools:
-
-1. **Infrastructure Orchestration (Terraform)**:
-   The process starts by provisioning the Azure foundation. Terraform creates the VM, Network, Key Vault (with a randomly generated DB password), and ACR. It also assigns a **Managed Service Identity (MSI)** to the VM, allowing it to communicate with Azure services without hardcoded credentials.
-
-2. **Configuration & Security (Ansible)**:
-   Once the VM is ready, Ansible takes over via SSH. It performs a **secure secret handshake**: using the VM's Managed Identity, it fetches the database password directly from Azure Key Vault via REST API. It then generates a secure `.env` file with `0600` permissions directly on the server.
-
-3. **Application Deployment (Docker)**:
-   In the final stage, Ansible copies the `docker-compose.yml` and builds the custom Nginx Proxy image directly on the target machine. It then spins up the Immich stack within a private Docker network, ensuring that only the Proxy is exposed to the internet on port 80.
-
 ## Project Progress
 
 ### Completed
-- [x] **Infrastructure as Code**: Terraform successfully deploys the Virtual Machine, ACR, Key Vault, and all required network components.
-- [x] **Identity & Security**: Implemented **Managed Service Identity (MSI)** for passwordless authentication and moved to a secure **RBAC/Access Policy** model in Key Vault.
-- [x] **Configuration Management**: Developed Ansible playbooks to automate OS hardening, Docker installation, and secret retrieval via REST API.
-- [x] **Orchestration**: Created a master `deploy.sh` script with integrated logging to coordinate Terraform and Ansible runs.
-- [x] **Reverse Proxy**: Built a custom Nginx image to handle routing and hide Immich microservices behind port 80.
-- [x] **Documentation**: Fully updated the README with Prerequisites, Quick Start guide, and detailed Workflow descriptions.
-
-### To Do
-- [ ] **Persistent Storage**: Attach dedicated Azure storage (e.g., Azure Managed Disks or Azure Files) to ensure photo backups persist even if the VM is recreated.
-- [ ] **Automated Backups**: Implement a strategy for backing up the Immich PostgreSQL database to Azure Blob Storage.
-- [ ] **CI/CD Pipeline**: Integrate GitHub Actions to automate the testing of Terraform plans and Docker image builds on every push.
-- [ ] **Optimize Registry Usage**: Shift from local Docker builds on the VM to pulling pre-built images from Azure Container Registry (ACR).
+- [x] **Infrastructure as Code:** Terraform successfully deploys the Virtual Machine, ACR, Key Vault, and all required network components.
+- [x] **Identity & Security:** Implemented **Managed Identity** for passwordless authentication and moved to a secure **RBAC/Access Policy** model in Key Vault.
+- [x] **Configuration Management:** Developed Ansible playbooks to automate OS hardening, Docker installation, and secret retrieval via REST API.
+- [x] **Orchestration:** Created a master `deploy.sh` script with integrated logging to coordinate Terraform and Ansible runs.
+- [x] **Reverse Proxy:** Built a custom Nginx image to handle routing and hide Immich microservices behind port 80.
+- [x] **Persistent Storage:** Integrated **Azure File Share** mounted directly via Docker named volumes with CIFS/SMB driver, ensuring photos persist independently of the VM lifetime.
+- [x] **CI/CD Pipeline & Sync:** Automated Docker image builds via **GitHub Actions** and synchronized the local deployment using the GitHub CLI (`gh run watch`).
+- [x] **Optimize Registry Usage:** Shifted from building images locally on the VM to pulling pre-built, secure images directly from **Azure Container Registry (ACR)**.
+- [x] **Documentation:** Fully updated the README with Architecture details, Prerequisites, Tech Stack, and detailed Workflow descriptions.
