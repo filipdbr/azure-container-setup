@@ -11,7 +11,6 @@ The focus is on managing the full lifecycle: provisioning infrastructure, deploy
 Build a reproducible environment that can be deployed from scratch without manual steps and runs reliably in the cloud.
 
 ## Table of Contents
-- [Goal](#goal)
 - [Architecture Overview](#architecture-overview)
 - [Tech Stack](#tech-stack)
 - [Repository Structure](#repository-structure)
